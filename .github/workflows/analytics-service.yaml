@@ -1,0 +1,66 @@
+name: Analytics Service - Deploy
+
+on:
+  push:
+    branches:
+      - main2
+  pull_request:
+    branches:
+      - main2
+
+
+jobs:
+  build-and-unit_test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: teste
+        run: echo "teste"
+
+  linter-static-analysis: 
+    depends-on: build-and-unit_test
+    name: Linter/Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: teste
+        run: echo "teste"
+
+
+  security-scan: 
+    depends-on: linter-static-analysis
+    name: Security Scan (SAST & SCA)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: teste
+        run: echo "teste"
+
+  docker-build-and-push: 
+    depends-on: security-scan
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: teste
+        run: echo "teste"       
+
+
+  docker-build-and-push: 
+    depends-on: security-scan
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: teste
+        run: echo "teste"       
+
+  update-helm-manifest: 
+    depends-on: security-scan
+    name: Update Helm Manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: teste
+        run: echo "teste"             

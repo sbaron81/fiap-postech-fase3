@@ -1,0 +1,27 @@
+# --- Estágio 1: Build ---
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app/
+
+COPY ./auth-service .
+
+# Equivalente ao 'go mod tidy' / baixa as dependências antes de copiar o código fonte
+RUN go mod tidy
+
+# Compila o binário do serviço
+RUN go build -o auth-service .
+
+# --- Estágio 2: Execução ---
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /app/
+
+# Copia apenas o binário compilado do estágio anterior
+COPY --from=builder /app/auth-service .
+
+EXPOSE 8001
+
+# Inicia o serviço executando o binário diretamente (muito mais rápido que go run)
+CMD ["./auth-service"]
