@@ -61,14 +61,57 @@ jobs:
         run: flake8 .
 
 
-  security-scan: 
+  security-scan:
     needs: linter-static-analysis
     name: Security Scan (SAST & SCA)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/analytics-service
 
     steps:
-      - name: teste
-        run: echo "teste"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: src/analytics-service/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # SCA - relatorio informativo (HIGH + CRITICAL), nao falha o job sozinho.
+      - name: SCA (Trivy) - relatorio de dependencias
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: src/analytics-service
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      # SCA - regra de bloqueio: falha o job (e trava o pipeline, via "needs"
+      # dos jobs seguintes) se achar vulnerabilidade CRITICAL numa dependencia.
+      - name: SCA (Trivy) - bloqueio em CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: src/analytics-service
+          scanners: vuln
+          severity: CRITICAL
+          exit-code: "1"
+
+      # SAST - relatorio informativo com todos os achados (--exit-zero nunca falha sozinho).
+      - name: SAST (Bandit) - relatorio completo
+        run: bandit -r . -x ./tests --exit-zero
+
+      # SAST - regra de bloqueio: bandit nao tem nivel "CRITICAL", entao o
+      # equivalente mais proximo e severidade HIGH + confianca HIGH (-lll -iii).
+      - name: SAST (Bandit) - bloqueio em High severity/High confidence
+        run: bandit -r . -x ./tests -lll -iii
 
   docker-build-and-push: 
     needs: security-scan
