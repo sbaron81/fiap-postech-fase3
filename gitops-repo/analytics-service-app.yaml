@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: analytics-service
+  namespace: argocd
+  labels:
+    app: analytics-service
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/sbaron81/fiap-postech-fase3
+    targetRevision: HEAD
+    path: gitops-repo/analytics-service/overlays/production
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: analytics-service
+
+  syncPolicy:
+    automated:
+      prune: true # remove recursos deletados do Git
+      selfHeal: true # corrige drift manual automaticamente
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true # cria o namespace analytics-service se nao existir
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  revisionHistoryLimit: 3
