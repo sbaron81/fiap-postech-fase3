@@ -49,7 +49,7 @@ jobs:
       
 
   update-helm-manifest: 
-    needs: security-scan
+    needs: docker-build-and-push
     name: Update Helm Manifests
     runs-on: ubuntu-latest
 
