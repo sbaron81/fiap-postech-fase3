@@ -35,14 +35,30 @@ jobs:
       - name: Run unit tests
         run: pytest -v
 
-  linter-static-analysis: 
+  linter-static-analysis:
     needs: build-and-unit_test
     name: Linter/Static Analysis
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/analytics-service
 
     steps:
-      - name: teste
-        run: echo "teste"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: src/analytics-service/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run flake8
+        run: flake8 .
 
 
   security-scan: 
