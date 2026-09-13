@@ -19,7 +19,7 @@ jobs:
         run: echo "teste"
 
   linter-static-analysis: 
-    depends-on: build-and-unit_test
+    needs: build-and-unit_test
     name: Linter/Static Analysis
     runs-on: ubuntu-latest
 
@@ -29,7 +29,7 @@ jobs:
 
 
   security-scan: 
-    depends-on: linter-static-analysis
+    needs: linter-static-analysis
     name: Security Scan (SAST & SCA)
     runs-on: ubuntu-latest
 
@@ -38,26 +38,17 @@ jobs:
         run: echo "teste"
 
   docker-build-and-push: 
-    depends-on: security-scan
+    needs: security-scan
     name: Docker Build & Push
     runs-on: ubuntu-latest
 
     steps:
       - name: teste
         run: echo "teste"       
-
-
-  docker-build-and-push: 
-    depends-on: security-scan
-    name: Docker Build & Push
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: teste
-        run: echo "teste"       
+      
 
   update-helm-manifest: 
-    depends-on: security-scan
+    needs: security-scan
     name: Update Helm Manifests
     runs-on: ubuntu-latest
 
