@@ -1,0 +1,13 @@
+# CVE-2026-13221, CVE-2026-42496, CVE-2026-8376 (pacote perl-base, CRITICAL)
+#
+# Correcao ja existe (5.40.1-6+deb13u1) mas ainda nao foi republicada nas
+# imagens python:*-slim (Debian 13/trixie) do Docker Hub em 2026-09-13 -
+# afeta qualquer imagem baseada nessa tag, nao e algo especifico deste
+# Dockerfile. O pacote perl nao e usado por nenhum dos servicos, so vem
+# junto da imagem base.
+#
+# Reavaliar/remover esta excecao quando a imagem base for republicada com o
+# pacote corrigido (ex.: apos um novo `docker pull python:3.11-slim`).
+CVE-2026-13221
+CVE-2026-42496
+CVE-2026-8376
