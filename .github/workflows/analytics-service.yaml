@@ -206,3 +206,49 @@ jobs:
           # (ele faz push na main, que e um dos gatilhos do "on: push" acima).
           git commit -m "chore(gitops): analytics-service -> ${{ needs.docker-build-and-push.outputs.tag }} [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
+
+  summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    # always() garante que o relatorio e gerado mesmo se algum job anterior
+    # falhar ou for pulado (docker-build-and-push/update-helm-manifest so
+    # rodam em push, nao em PR - sem always() este job seria pulado junto).
+    if: always()
+    needs:
+      - build-and-unit_test
+      - linter-static-analysis
+      - security-scan
+      - docker-build-and-push
+      - update-helm-manifest
+
+    steps:
+      - name: Gerar relatorio do pipeline
+        run: |
+          status_label() {
+            case "$1" in
+              success)   echo "✅ sucesso" ;;
+              failure)   echo "❌ falhou" ;;
+              skipped)   echo "⏭️ pulado" ;;
+              cancelled) echo "🚫 cancelado" ;;
+              *)         echo "❓ $1" ;;
+            esac
+          }
+
+          {
+            echo "## 📋 Resumo do pipeline - analytics-service"
+            echo ""
+            echo "| Job | Status |"
+            echo "|---|---|"
+            echo "| Build & Unit Tests | $(status_label '${{ needs.build-and-unit_test.result }}') |"
+            echo "| Linter/Static Analysis | $(status_label '${{ needs.linter-static-analysis.result }}') |"
+            echo "| Security Scan (SAST & SCA) | $(status_label '${{ needs.security-scan.result }}') |"
+            echo "| Docker Build & Push | $(status_label '${{ needs.docker-build-and-push.result }}') |"
+            echo "| Update Helm Manifests | $(status_label '${{ needs.update-helm-manifest.result }}') |"
+            echo ""
+            echo "**Commit:** \`${GITHUB_SHA::7}\`"
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo "**Evento:** \`${{ github.event_name }}\` por @${{ github.actor }}"
+            if [ -n "${{ needs.docker-build-and-push.outputs.tag }}" ]; then
+              echo "**Tag da imagem:** \`${{ needs.docker-build-and-push.outputs.tag }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
