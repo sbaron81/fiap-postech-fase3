@@ -4,17 +4,16 @@ kind: Kustomization
 namespace: analytics-service
 
 resources:
-  - ../../base
+- ../../base
 
 labels:
-  - pairs:
-      environment: production
-    includeSelectors: false
+- pairs:
+    environment: production
 
 # O job "update-helm-manifest" do workflow de CI atualiza o newTag abaixo
 # (via `kustomize edit set image` ou similar) a cada push com a tag gerada
 # pelo job docker-build-and-push (ex.: v1.0.0-a1b2c3d). O ArgoCD detecta a
 # mudanca neste arquivo e sincroniza o deployment automaticamente.
 images:
-  - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/analytics-service
-    newTag: latest
+- name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/analytics-service
+  newTag: v1.0.0-d070fd0
