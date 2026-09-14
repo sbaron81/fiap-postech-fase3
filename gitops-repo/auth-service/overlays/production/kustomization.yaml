@@ -15,4 +15,4 @@ labels:
 # a mudanca neste arquivo e sincroniza o deployment automaticamente.
 images:
 - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/auth-service
-  newTag: v1.0.0-33ed23c
+  newTag: v1.0.0-edc574a
