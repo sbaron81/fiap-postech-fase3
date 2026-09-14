@@ -17,4 +17,4 @@ labels:
 # mudanca neste arquivo e sincroniza o deployment automaticamente.
 images:
   - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/analytics-service
-    newTag: latest
+    newTag: v1.0.0
