@@ -4,13 +4,12 @@ kind: Kustomization
 namespace: flag-service
 
 resources:
-  - ../../base
+- ../../base
 
 labels:
-  - pairs:
-      environment: production
-    includeSelectors: false
+- pairs:
+    environment: production
 
 images:
-  - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/flag-service
-    newTag: v1.0.0
+- name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/flag-service
+  newTag: v1.0.0-a96b93e
