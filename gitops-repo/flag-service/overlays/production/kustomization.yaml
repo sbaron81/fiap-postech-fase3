@@ -12,4 +12,4 @@ labels:
 
 images:
 - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/flag-service
-  newTag: v1.0.0-632a3dc
+  newTag: v1.0.0-5fcaa6a
