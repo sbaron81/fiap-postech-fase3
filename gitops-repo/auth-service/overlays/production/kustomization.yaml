@@ -4,16 +4,15 @@ kind: Kustomization
 namespace: auth-service
 
 resources:
-  - ../../base
+- ../../base
 
 labels:
-  - pairs:
-      environment: production
-    includeSelectors: false
+- pairs:
+    environment: production
 
 # O job "update-helm-manifest" do workflow de CI atualiza o newTag abaixo a
 # cada push com a tag gerada pelo job docker-build-and-push. O ArgoCD detecta
 # a mudanca neste arquivo e sincroniza o deployment automaticamente.
 images:
-  - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/auth-service
-    newTag: v1.0.0
+- name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/auth-service
+  newTag: v1.0.0-a96b93e
