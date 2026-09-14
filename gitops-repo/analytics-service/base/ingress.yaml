@@ -1,0 +1,25 @@
+# O annotation rewrite-target remove o prefixo (/analytics) antes de
+# encaminhar pro service, ja que a aplicacao expoe suas rotas na raiz
+# (ex: /health), nao em /analytics/health.
+#
+# Requer o ingress-nginx-controller instalado no cluster
+# (terraform/modules/ingress-nginx) - um unico Load Balancer compartilhado
+# por todos os servicos que tiverem ingressClassName: nginx.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: analytics-service
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /analytics(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: analytics-service
+                port:
+                  number: 8005

@@ -95,3 +95,14 @@ variable "keda_chart_version" {
   type        = string
   default     = null
 }
+
+variable "ingress_nginx_namespace" {
+  type    = string
+  default = "ingress-nginx"
+}
+
+variable "ingress_nginx_chart_version" {
+  description = "null = usa a versao mais recente do chart ingress-nginx"
+  type        = string
+  default     = null
+}

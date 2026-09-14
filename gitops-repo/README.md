@@ -37,10 +37,25 @@ mantém o cluster sincronizado com este repositório sem intervenção manual.
 1. Push em `main` dispara [`.github/workflows/analytics-service.yaml`](../.github/workflows/analytics-service.yaml).
 2. `docker-build-and-push` builda, escaneia (Trivy) e publica a imagem no ECR
    com a tag `v1.0.0-<commit-hash>`.
-3. `update-helm-manifest` (a implementar) atualiza o `newTag` em
+3. `update-helm-manifest` atualiza o `newTag` em
    [`analytics-service/overlays/production/kustomization.yaml`](analytics-service/overlays/production/kustomization.yaml)
-   com essa mesma tag e commita neste repositório.
+   com essa mesma tag e commita neste repositório (com `[skip ci]`, pra não
+   disparar o workflow de novo).
 4. O ArgoCD detecta a mudança no Git e sincroniza o Deployment automaticamente.
+
+## Acesso externo
+
+Cada serviço expõe um `Ingress` (`base/ingress.yaml`) sob um path próprio
+(`/analytics` para o analytics-service), roteado por um unico controller
+`ingress-nginx` compartilhado (`terraform/modules/ingress-nginx`, um NLB só
+para todos os serviços - não é um LoadBalancer por serviço). Pra descobrir o
+endereço depois do `terraform apply`:
+
+```bash
+terraform output -raw ingress_get_address | bash
+```
+
+E então: `http://<endereco-do-lb>/analytics/health`.
 
 ## Convenções
 

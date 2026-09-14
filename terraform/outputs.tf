@@ -54,3 +54,7 @@ output "argocd_get_admin_password" {
 output "argocd_get_server_address" {
   value = "kubectl -n ${module.argocd.namespace} get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'; echo"
 }
+
+output "ingress_get_address" {
+  value = "kubectl -n ${module.ingress_nginx.namespace} get svc ${module.ingress_nginx.service_name} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'; echo"
+}

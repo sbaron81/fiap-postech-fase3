@@ -84,3 +84,12 @@ module "keda" {
 
   depends_on = [module.eks]
 }
+
+module "ingress_nginx" {
+  source = "./modules/ingress-nginx"
+
+  namespace     = var.ingress_nginx_namespace
+  chart_version = var.ingress_nginx_chart_version
+
+  depends_on = [module.eks]
+}
