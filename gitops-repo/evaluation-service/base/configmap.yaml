@@ -1,0 +1,13 @@
+# REDIS_URL usa rediss:// (TLS) porque o ElastiCache Serverless forca
+# encryption in-transit - ver terraform/modules/elasticache/outputs.tf.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evaluation-service-config
+data:
+  PORT: "8004"
+  REDIS_URL: "rediss://evaluation-service-t0uqzp.serverless.use1.cache.amazonaws.com:6379"
+  FLAG_SERVICE_URL: "http://flag-service.flag-service:8002"
+  TARGETING_SERVICE_URL: "http://targeting-service.targeting-service:8003"
+  AWS_SQS_URL: "https://sqs.us-east-1.amazonaws.com/343770067934/fiap-fase3-toggle-events"
+  AWS_REGION: "us-east-1"

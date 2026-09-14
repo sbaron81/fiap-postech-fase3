@@ -1,0 +1,21 @@
+# O annotation rewrite-target remove o prefixo (/auth) antes de encaminhar
+# pro service, ja que a aplicacao expoe suas rotas na raiz (ex: /health,
+# /validate), nao em /auth/health.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-service
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /auth(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8001

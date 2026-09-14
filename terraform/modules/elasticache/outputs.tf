@@ -7,7 +7,9 @@ output "port" {
 }
 
 output "redis_url" {
-  value = "redis://${aws_elasticache_serverless_cache.this.endpoint[0].address}:${aws_elasticache_serverless_cache.this.endpoint[0].port}"
+  # ElastiCache Serverless forca encryption in-transit (nao da pra desligar) -
+  # "rediss://" (TLS) e obrigatorio aqui, "redis://" simples nao conecta.
+  value = "rediss://${aws_elasticache_serverless_cache.this.endpoint[0].address}:${aws_elasticache_serverless_cache.this.endpoint[0].port}"
 }
 
 output "security_group_id" {

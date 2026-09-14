@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: evaluation-service
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      environment: production
+    includeSelectors: false
+
+images:
+  - name: 343770067934.dkr.ecr.us-east-1.amazonaws.com/fiap/evaluation-service
+    newTag: v1.0.0

@@ -1,0 +1,246 @@
+name: Auth Service - Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+
+jobs:
+  build-and-unit_test:
+    name: Build & Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/auth-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: src/auth-service/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Run unit tests
+        run: go test ./... -v
+
+  linter-static-analysis:
+    needs: build-and-unit_test
+    name: Linter/Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: src/auth-service/go.sum
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@d583c34f0599d37dbac4a198b9c83201be380893 # v9.3.0
+        with:
+          version: v2.13.2
+          working-directory: src/auth-service
+
+  security-scan:
+    needs: linter-static-analysis
+    name: Security Scan (SAST & SCA)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/auth-service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: src/auth-service/go.sum
+
+      # SCA - relatorio informativo (HIGH + CRITICAL), nao falha o job sozinho.
+      - name: SCA (Trivy) - relatorio de dependencias
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: src/auth-service
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+
+      # SCA - regra de bloqueio: falha o job (e trava o pipeline, via "needs"
+      # dos jobs seguintes) se achar vulnerabilidade CRITICAL numa dependencia.
+      - name: SCA (Trivy) - bloqueio em CRITICAL
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: src/auth-service
+          scanners: vuln
+          severity: CRITICAL
+          exit-code: "1"
+
+      - name: Instalar gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
+
+      # SAST - relatorio informativo com todos os achados (-no-fail nunca falha sozinho).
+      - name: SAST (gosec) - relatorio completo
+        run: gosec -no-fail ./...
+
+      # SAST - regra de bloqueio: gosec nao tem nivel "CRITICAL" (so
+      # low/medium/high), entao o equivalente mais proximo e -severity high.
+      - name: SAST (gosec) - bloqueio em High severity
+        run: gosec -severity high ./...
+
+  docker-build-and-push:
+    needs: security-scan
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    # So builda/publica/faz deploy em push real na main, nunca em PR
+    # (evita subir imagem e mexer no gitops-repo por causa de um PR aberto).
+    if: github.event_name == 'push'
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Definir tag da imagem (commit hash)
+        id: vars
+        run: echo "tag=v1.0.0-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build da imagem Docker
+        run: |
+          docker build \
+            -f Docker/Dockerfile_auth-service \
+            -t "auth-service:${{ steps.vars.outputs.tag }}" \
+            src/
+
+      # Container Scan - regra de bloqueio: falha (e nao publica) se achar
+      # CRITICAL na imagem. A imagem final e alpine (nao python:*-slim), entao
+      # nao usa o Docker/.trivyignore (aquela excecao e so do pacote perl-base
+      # das imagens Debian/python:*-slim).
+      - name: Container Scan (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: auth-service:${{ steps.vars.outputs.tag }}
+          scanners: vuln
+          severity: CRITICAL
+          exit-code: "1"
+
+      - name: Configurar credenciais AWS
+        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login no Amazon ECR
+        uses: aws-actions/amazon-ecr-login@aded0d722166a37980e030aa969dda0bfe6b6947 # v2.1.7
+
+      - name: Tag e push da imagem para o ECR
+        run: |
+          docker tag "auth-service:${{ steps.vars.outputs.tag }}" "${{ vars.ECR_AUTH }}:${{ steps.vars.outputs.tag }}"
+          docker push "${{ vars.ECR_AUTH }}:${{ steps.vars.outputs.tag }}"
+
+  update-helm-manifest:
+    needs: docker-build-and-push
+    name: Update Helm Manifests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Instalar kustomize
+        run: |
+          curl -sfLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Atualizar tag da imagem no overlay de producao
+        working-directory: gitops-repo/auth-service/overlays/production
+        run: kustomize edit set image "${{ vars.ECR_AUTH }}:${{ needs.docker-build-and-push.outputs.tag }}"
+
+      - name: Commit e push do manifest atualizado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops-repo/auth-service/overlays/production/kustomization.yaml
+
+          if git diff --cached --quiet; then
+            echo "Tag ja esta atualizada, nada para commitar."
+            exit 0
+          fi
+
+          # [skip ci] evita que este proprio commit dispare o workflow de novo
+          # (ele faz push na main, que e um dos gatilhos do "on: push" acima).
+          git commit -m "chore(gitops): auth-service -> ${{ needs.docker-build-and-push.outputs.tag }} [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+
+  summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    # always() garante que o relatorio e gerado mesmo se algum job anterior
+    # falhar ou for pulado (docker-build-and-push/update-helm-manifest so
+    # rodam em push, nao em PR - sem always() este job seria pulado junto).
+    if: always()
+    needs:
+      - build-and-unit_test
+      - linter-static-analysis
+      - security-scan
+      - docker-build-and-push
+      - update-helm-manifest
+
+    steps:
+      - name: Gerar relatorio do pipeline
+        run: |
+          status_label() {
+            case "$1" in
+              success)   echo "✅ sucesso" ;;
+              failure)   echo "❌ falhou" ;;
+              skipped)   echo "⏭️ pulado" ;;
+              cancelled) echo "🚫 cancelado" ;;
+              *)         echo "❓ $1" ;;
+            esac
+          }
+
+          {
+            echo "## 📋 Resumo do pipeline - auth-service"
+            echo ""
+            echo "| Job | Status |"
+            echo "|---|---|"
+            echo "| Build & Unit Tests | $(status_label '${{ needs.build-and-unit_test.result }}') |"
+            echo "| Linter/Static Analysis | $(status_label '${{ needs.linter-static-analysis.result }}') |"
+            echo "| Security Scan (SAST & SCA) | $(status_label '${{ needs.security-scan.result }}') |"
+            echo "| Docker Build & Push | $(status_label '${{ needs.docker-build-and-push.result }}') |"
+            echo "| Update Helm Manifests | $(status_label '${{ needs.update-helm-manifest.result }}') |"
+            echo ""
+            echo "**Commit:** \`${GITHUB_SHA::7}\`"
+            echo "**Branch:** \`${{ github.ref_name }}\`"
+            echo "**Evento:** \`${{ github.event_name }}\` por @${{ github.actor }}"
+            if [ -n "${{ needs.docker-build-and-push.outputs.tag }}" ]; then
+              echo "**Tag da imagem:** \`${{ needs.docker-build-and-push.outputs.tag }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
