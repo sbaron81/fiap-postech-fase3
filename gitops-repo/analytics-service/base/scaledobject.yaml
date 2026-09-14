@@ -27,3 +27,5 @@ spec:
         queueLength: "1" # 1 mensagem na fila por replica
         awsRegion: us-east-1
         identityOwner: operator
+
+        
