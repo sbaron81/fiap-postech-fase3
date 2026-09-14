@@ -197,7 +197,23 @@ jobs:
           # [skip ci] evita que este proprio commit dispare o workflow de novo
           # (ele faz push na main, que e um dos gatilhos do "on: push" acima).
           git commit -m "chore(gitops): auth-service -> ${{ needs.docker-build-and-push.outputs.tag }} [skip ci]"
-          git push origin HEAD:${{ github.ref_name }}
+
+          # Retry com rebase: outro workflow (de outro servico, ou um commit
+          # manual) pode ter dado push na main entre o checkout e agora,
+          # rejeitando este push por "cannot lock ref". Como cada servico
+          # mexe no seu proprio kustomization.yaml, o rebase e trivial.
+          for i in 1 2 3 4 5; do
+            if git push origin HEAD:${{ github.ref_name }}; then
+              exit 0
+            fi
+            echo "Push rejeitado (tentativa $i/5), rebaseando e tentando de novo..."
+            git fetch origin ${{ github.ref_name }}
+            git rebase origin/${{ github.ref_name }}
+            sleep $((i * 3))
+          done
+
+          echo "Falhou ao dar push depois de 5 tentativas."
+          exit 1
 
   summary:
     name: Workflow Summary
