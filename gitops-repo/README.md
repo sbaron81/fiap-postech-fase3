@@ -87,14 +87,13 @@ Ex.: `http://<endereco-do-lb>/auth/health`.
 - **Imagem**: registro único no ECR (`<account>.dkr.ecr.us-east-1.amazonaws.com/fiap/<servico>`),
   tag imutável `v1.0.0-<commit-hash>` sobrescrita pelo transformer `images:`
   do overlay - o `base` nunca é aplicado sozinho em produção.
-- **Autoscaling**: `analytics-service` (worker que consome a fila SQS) usa
-  `ScaledObject` do KEDA, sem `replicas` fixo no Deployment (o HPA gerado
-  pelo KEDA é quem manda). Todos os outros 4 são APIs HTTP síncronas com
-  `replicas` fixo (2) - inclusive o `evaluation-service`, que só *escreve* na
-  fila SQS como efeito colateral (não a consome), então escalar por tamanho
-  de fila não faria sentido pra ele. Isso diverge do padrão usado na Fase 2
-  (que tinha KEDA também no evaluation-service): mudamos de propósito aqui
-  por ser o modelo de escala mais correto para um serviço request/response.
+- **Autoscaling**: todos os 5 serviços usam `replicas` fixo no Deployment (2
+  para as 4 APIs HTTP síncronas, 1 para o `analytics-service`, que é um
+  worker de baixo volume). O `analytics-service` chegou a usar `ScaledObject`
+  do KEDA (escalando pelo tamanho da fila SQS, como na Fase 2), mas foi
+  desativado - o controller KEDA (`terraform/modules/keda`) continua
+  instalado no cluster caso algum serviço volte a precisar dele, só não tem
+  nenhum `ScaledObject` usando-o no momento.
 - **Labels**: usamos o campo `labels` (com `includeSelectors: false`) em vez
   do `commonLabels` (deprecado) - evita que labels de metadata acabem
   vazando pro `selector` imutável do Deployment/Service.
