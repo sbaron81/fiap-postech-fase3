@@ -34,7 +34,7 @@ mantém o cluster sincronizado com este repositório sem intervenção manual.
 
 ## Fluxo de deploy (CI -> GitOps -> ArgoCD)
 
-1. Push em `main2` dispara [`.github/workflows/analytics-service.yaml`](../.github/workflows/analytics-service.yaml).
+1. Push em `main` dispara [`.github/workflows/analytics-service.yaml`](../.github/workflows/analytics-service.yaml).
 2. `docker-build-and-push` builda, escaneia (Trivy) e publica a imagem no ECR
    com a tag `v1.0.0-<commit-hash>`.
 3. `update-helm-manifest` (a implementar) atualiza o `newTag` em

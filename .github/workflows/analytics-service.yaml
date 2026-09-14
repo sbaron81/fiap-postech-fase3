@@ -3,10 +3,10 @@ name: Analytics Service - Deploy
 on:
   push:
     branches:
-      - main2
+      - main
   pull_request:
     branches:
-      - main2
+      - main
   workflow_dispatch:
 
 
@@ -117,7 +117,7 @@ jobs:
     needs: security-scan
     name: Docker Build & Push
     runs-on: ubuntu-latest
-    # So builda/publica/faz deploy em push real na main2, nunca em PR
+    # So builda/publica/faz deploy em push real na main, nunca em PR
     # (evita subir imagem e mexer no gitops-repo por causa de um PR aberto).
     if: github.event_name == 'push'
     outputs:
@@ -203,6 +203,6 @@ jobs:
           fi
 
           # [skip ci] evita que este proprio commit dispare o workflow de novo
-          # (ele faz push na main2, que e um dos gatilhos do "on: push" acima).
+          # (ele faz push na main, que e um dos gatilhos do "on: push" acima).
           git commit -m "chore(gitops): analytics-service -> ${{ needs.docker-build-and-push.outputs.tag }} [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
