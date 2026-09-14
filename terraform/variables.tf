@@ -84,3 +84,14 @@ variable "argocd_server_service_type" {
   type        = string
   default     = "LoadBalancer"
 }
+
+variable "keda_namespace" {
+  type    = string
+  default = "keda"
+}
+
+variable "keda_chart_version" {
+  description = "null = usa a versao mais recente do chart keda"
+  type        = string
+  default     = null
+}

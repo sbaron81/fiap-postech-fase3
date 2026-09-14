@@ -75,3 +75,12 @@ module "argocd" {
   # senao os pods do argocd ficam Pending indefinidamente.
   depends_on = [module.eks]
 }
+
+module "keda" {
+  source = "./modules/keda"
+
+  namespace     = var.keda_namespace
+  chart_version = var.keda_chart_version
+
+  depends_on = [module.eks]
+}

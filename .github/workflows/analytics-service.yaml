@@ -117,6 +117,11 @@ jobs:
     needs: security-scan
     name: Docker Build & Push
     runs-on: ubuntu-latest
+    # So builda/publica/faz deploy em push real na main2, nunca em PR
+    # (evita subir imagem e mexer no gitops-repo por causa de um PR aberto).
+    if: github.event_name == 'push'
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
 
     steps:
       - name: Checkout
@@ -162,11 +167,42 @@ jobs:
           docker tag "analytics-service:${{ steps.vars.outputs.tag }}" "${{ vars.ECR_ANALYTICS }}:${{ steps.vars.outputs.tag }}"
           docker push "${{ vars.ECR_ANALYTICS }}:${{ steps.vars.outputs.tag }}"
 
-  update-helm-manifest: 
+  update-helm-manifest:
     needs: docker-build-and-push
     name: Update Helm Manifests
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
 
     steps:
-      - name: teste
-        run: echo "teste"             
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Instalar kustomize
+        run: |
+          curl -sfLo kustomize.tar.gz "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.5.0/kustomize_v5.5.0_linux_amd64.tar.gz"
+          tar -xzf kustomize.tar.gz
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Atualizar tag da imagem no overlay de producao
+        working-directory: gitops-repo/analytics-service/overlays/production
+        run: kustomize edit set image "${{ vars.ECR_ANALYTICS }}:${{ needs.docker-build-and-push.outputs.tag }}"
+
+      - name: Commit e push do manifest atualizado
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops-repo/analytics-service/overlays/production/kustomization.yaml
+
+          if git diff --cached --quiet; then
+            echo "Tag ja esta atualizada, nada para commitar."
+            exit 0
+          fi
+
+          # [skip ci] evita que este proprio commit dispare o workflow de novo
+          # (ele faz push na main2, que e um dos gatilhos do "on: push" acima).
+          git commit -m "chore(gitops): analytics-service -> ${{ needs.docker-build-and-push.outputs.tag }} [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
